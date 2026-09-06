@@ -17,13 +17,266 @@
  */
 
 #include <stdint.h>
+#include "main.h"
 
 #if !defined(__SOFT_FP__) && defined(__ARM_FP)
   #warning "FPU is not initialized, but the project is compiling for an FPU. Please initialize the FPU before use."
 #endif
 
+UART_HandleTypeDef huart2;
+void SystemClock_Config(void);
+static void MX_GPIO_Init(void);
+static void MX_USART2_UART_Init(void);
+
+
+void punto1(void);
+void punto2(void);
+
+delay_t timer;
+
+uint32_t const dealy50ms = 50;
+uint32_t const dealy100ms = 100;
+uint32_t const dealy500ms = 500;
+
+uint8_t const cantPeriodoDelay = 3;
+uint8_t const iteracionesDelCiclo = 5;
+uint8_t const onOffPorPeriodo = 10;
+
 int main(void)
 {
-    /* Loop forever */
-	for(;;);
+	//Inicializadores
+	HAL_Init();
+	SystemClock_Config();
+	MX_GPIO_Init();
+	MX_USART2_UART_Init();
+
+	//DESCOMENTAR SEGUND QUE PUNTO DEL ENTRRGABLE SE QUIERA CORRER
+	//punto1();
+	punto2();
+}
+
+void punto1(){
+	delayInit(&timer, dealy100ms);
+	while (true){
+		if (delayRead(&timer)){
+			HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+		}
+	}
+}
+
+void punto2(){
+	bool_t cicloCumplido;
+	uint8_t cantidadEncendidoApagado;
+	uint32_t delays[] = {dealy500ms, dealy100ms, dealy50ms};
+	delayInit(&timer, dealy500ms);
+	while(true){
+		for (int i=0; i < cantPeriodoDelay; i++){
+			cicloCumplido = false;
+			cantidadEncendidoApagado = 0;
+			delayWrite(&timer, delays[i]);
+			while(!cicloCumplido){
+				if (delayRead(&timer)){
+					HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+					cantidadEncendidoApagado++;
+				}
+				if (cantidadEncendidoApagado == onOffPorPeriodo){
+					cicloCumplido = true;
+				}
+			}
+		}
+	}
+}
+
+/*PREGUNTAS Y RESPUESTAS
+ * P:¿Se pueden cambiar los tiempos de encendido de cada led fácilmente en un solo lugar del código o éstos están hardcodeados?
+ * R: Se pueden cambiar en las constantes, asi que si se puede cambiar facilmente y no estan harcodeados.
+ *
+ * P:¿Qué bibliotecas estándar se debieron agregar para que el código compile? Si las funcionalidades crecieran, habría que pensar cuál sería el mejor lugar para incluir esas bibliotecas y algunos typedefs que se usan en el ejercicio.
+ * R: Se incluyeron stdint y stdbool. Si creciera podria generarse un def.h donde este las librerias generales compartidas.
+ *
+ * P: ¿Es adecuado el control de los parámetros pasados por el usuario que se hace en las funciones implementadas? ¿Se controla que sean valores válidos? ¿Se controla que estén dentro de los rangos correctos?
+ * R: Si
+ *
+ * P: ¿Cuán reutilizable es el código implementado?
+ * R: Creo que es bastante reutilizable, se podria copiar o generar una libreria especifica para las funciones delay y se podria utilizar en otro codigo facilmente
+ *
+ * P: ¿Cuán sencillo resulta en su implementación cambiar el patrón de tiempos de parpadeo?
+ * R: Habrian que agregar una liena de codigo  luego cambiar dos ya existentes. Se podria mejorar y reduciri en 1 la cantidad de lineas a cambiar.
+
+*/
+/*
+ * parametros de entrda:
+ * delay: puntero del tipo delay_t, se seta running en false
+ * duration: duracion en ms para setear en delay
+ */
+void delayInit( delay_t * delay, tick_t duration ){
+
+	if (delay == NULL || duration == 0) {
+		return;
+	}
+
+	delay->running = false;
+	delay->duration = duration;
+}
+
+/*
+ * parametros de entrda:
+ * delay: puntero del tipo delay_t
+ * la funcion devuelve un bool dependiendo de si el tiempo de duracion establecido en
+ * la variable se cumplio o no
+ */
+bool_t delayRead( delay_t * delay ){
+
+	if (delay == NULL) {
+	        return false;
+	}
+
+	tick_t time = HAL_GetTick();
+
+	if (!delay->running){
+		delay->running = true;
+		delay->startTime = time;
+	}
+	else {
+		if (HAL_GetTick() - delay->startTime > delay->duration){
+			delay->running = false;
+			return true;
+		}
+	}
+	return false;
+}
+
+/*
+ * parametros de entrda:
+ * delay: puntero del tipo delay_t
+ * duration: tiempo en ms a setear en delay
+ */
+void delayWrite( delay_t * delay, tick_t duration ){
+
+	if (delay == NULL || duration == 0) {
+	        return;
+	}
+
+	delay->duration = duration;
+}
+
+
+void SystemClock_Config(void)
+{
+  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+
+  /** Configure the main internal regulator output voltage
+  */
+  __HAL_RCC_PWR_CLK_ENABLE();
+  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE3);
+
+  /** Initializes the RCC Oscillators according to the specified parameters
+  * in the RCC_OscInitTypeDef structure.
+  */
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+  RCC_OscInitStruct.PLL.PLLM = 16;
+  RCC_OscInitStruct.PLL.PLLN = 336;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV4;
+  RCC_OscInitStruct.PLL.PLLQ = 2;
+  RCC_OscInitStruct.PLL.PLLR = 2;
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Initializes the CPU, AHB and APB buses clocks
+  */
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
+
+/**
+  * @brief USART2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART2_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART2_Init 0 */
+
+  /* USER CODE END USART2_Init 0 */
+
+  /* USER CODE BEGIN USART2_Init 1 */
+
+  /* USER CODE END USART2_Init 1 */
+  huart2.Instance = USART2;
+  huart2.Init.BaudRate = 115200;
+  huart2.Init.WordLength = UART_WORDLENGTH_8B;
+  huart2.Init.StopBits = UART_STOPBITS_1;
+  huart2.Init.Parity = UART_PARITY_NONE;
+  huart2.Init.Mode = UART_MODE_TX_RX;
+  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART2_Init 2 */
+
+  /* USER CODE END USART2_Init 2 */
+
+}
+
+/**
+  * @brief GPIO Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_GPIO_Init(void)
+{
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+  /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOH_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin : B1_Pin */
+  GPIO_InitStruct.Pin = B1_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : LD2_Pin */
+  GPIO_InitStruct.Pin = LD2_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+
+}
+
+void Error_Handler(void)
+{
+  /* USER CODE BEGIN Error_Handler_Debug */
+  /* User can add his own implementation to report the HAL error return state */
+  __disable_irq();
+  while (1)
+  {
+  }
+  /* USER CODE END Error_Handler_Debug */
 }
