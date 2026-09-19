@@ -1,16 +1,24 @@
-/*
- * API_delay.c
- *
- *  Created on: 10 set. 2026
- *      Author: julia
+/**
+ * @file API_delay.c
+ * @brief Implementation of the non-blocking delay module.
+ * @details Provides non-blocking delay functionality based on the HAL tick
+ *          counter (HAL_GetTick). Delays do not block execution; instead,
+ *          they are polled via delayRead() to check for expiration.
+ * @author Julian Ferreira
+ * @date 10/09/2026
  */
 
 #include "API_delay.h"
 
-/*
- * parametros de entrda:
- * delay: puntero del tipo delay_t, se seta running en false
- * duration: duracion en ms para setear en delay
+/**
+ * @brief Initializes a delay structure with the given duration.
+ *
+ * Sets the running flag to false and stores the specified duration.
+ * If the pointer is NULL or the duration is zero, the function returns
+ * without modifying anything.
+ *
+ * @param[in,out] delay    Pointer to the delay structure to initialize.
+ * @param[in]     duration Delay duration in milliseconds. Must be > 0.
  */
 void delayInit( delay_t * delay, tick_t duration ){
 
@@ -22,11 +30,16 @@ void delayInit( delay_t * delay, tick_t duration ){
 	delay->duration = duration;
 }
 
-/*
- * parametros de entrda:
- * delay: puntero del tipo delay_t
- * la funcion devuelve un bool dependiendo de si el tiempo de duracion establecido en
- * la variable se cumplio o no
+/**
+ * @brief Checks whether the configured delay has elapsed.
+ *
+ * On the first call (delay not running), records the current tick as the
+ * start time and sets the delay to running. On subsequent calls, compares
+ * the elapsed time against the configured duration. When the delay expires,
+ * it automatically resets to a non-running state and returns true.
+ *
+ * @param[in,out] delay Pointer to the delay structure.
+ * @return true if the delay has elapsed, false otherwise or if delay is NULL.
  */
 bool_t delayRead( delay_t * delay ){
 
@@ -49,10 +62,14 @@ bool_t delayRead( delay_t * delay ){
 	return false;
 }
 
-/*
- * parametros de entrda:
- * delay: puntero del tipo delay_t
- * duration: tiempo en ms a setear en delay
+/**
+ * @brief Updates the duration of an existing delay.
+ *
+ * If the pointer is NULL or the duration is zero, the function returns
+ * without modifying anything.
+ *
+ * @param[in,out] delay    Pointer to the delay structure.
+ * @param[in]     duration New duration in milliseconds. Must be > 0.
  */
 void delayWrite( delay_t * delay, tick_t duration ){
 
@@ -63,6 +80,12 @@ void delayWrite( delay_t * delay, tick_t duration ){
 	delay->duration = duration;
 }
 
+/**
+ * @brief Checks whether the delay is currently running.
+ *
+ * @param[in] delay Pointer to the delay structure.
+ * @return true if the delay is running, false otherwise.
+ */
 bool_t delayIsRunning(delay_t * delay){
 	return delay->running;
 }
